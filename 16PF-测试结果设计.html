@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>16PF 测评结果分析</title>
+    <!-- 引入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Chart.js CDN 用于雷达图 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <style>
+        /* 确保 Chart.js 容器高度合适 */
+        #radarChart {
+            max-height: 500px;
+        }
+        /* 模态框进入和退出动画 */
+        .modal-enter-active, .modal-leave-active {
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .modal-enter, .modal-leave-to {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        /* 自定义滚动条样式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #9CA3AF;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background-color: #F3F4F6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans p-4 sm:p-8">
+
+    <div id="app" class="max-w-6xl mx-auto bg-white shadow-2xl rounded-xl p-6 sm:p-10">
+
+        <!-- 标题区域 -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-blue-800 mb-2">16PF 人格因素测评报告</h1>
+            <p class="text-xl text-gray-600">您的综合性格侧写</p>
+            <div class="mt-4 flex justify-center gap-4">
+                <button onclick="window.location.href='16PF-测试.html'" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition duration-200">
+                    返回测试
+                </button>
+                <button onclick="showScoringRules()" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition duration-200">
+                    查看计分规则
+                </button>
+                <button onclick="showScoreDetails()" class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition duration-200">
+                    查看计分明细
+                </button>
+            </div>
+            <div id="quickDemoBanner" style="display: none;" class="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded">
+                <p class="text-yellow-800 font-semibold">⚡ 这是演示模式的结果，您使用了快速模拟测试功能</p>
+            </div>
+        </header>
+
+        <!-- 计分规则卡片 -->
+        <div id="scoringRulesCard" class="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200" style="display: none;">
+            <h2 class="text-3xl font-bold text-blue-800 mb-6 text-center">📊 16PF 计分规则说明</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 原始分数计算 -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">原始分数计算</h3>
+                    <ul class="space-y-2 text-gray-700">
+                        <li>• 每题有 A、B、C 三个选项</li>
+                        <li>• 每个选项对应不同的计分值（0、1、2）</li>
+                        <li>• 原始分 = 该因子下所有题目的计分总和</li>
+                        <li>• 每个因子约有 10-13 道题目</li>
+                    </ul>
+                </div>
+
+                <!-- Sten分数转换 -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">16种基础因子标准分转换</h3>
+                    <ul class="space-y-2 text-gray-700">
+                        <li>• 16种基础因子分数范围：1-10分</li>
+                        <li>• 1-3分：低分倾向</li>
+                        <li>• 4-7分：中等倾向</li>
+                        <li>• 8-10分：高分倾向</li>
+                    </ul>
+                </div>
+
+                <!-- 次元人格计算 -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">次元人格计算</h3>
+                    <ul class="space-y-2 text-gray-700 text-sm">
+                        <li><strong>内向-外向：</strong>((2 × A + 3 × E + 4 × F + 5 × H) - (A × Q2 + 11)) / 10</li>
+                        <li><strong>心理健康：</strong>C + F + (11 - O) + (11 - Q4)</li>
+                        <li><strong>成长能力：</strong>B + G + Q3 + (11 - F)</li>
+                        <li><strong>专业成就：</strong>2 × Q3 + 2 × G + 2 × C + E + N + Q2 + Q1</li>
+                        <li><strong>创造能力：</strong>2 × (11 - A) + 2 × B + E + 2 × (11 - F) + H + 2 × I + M + (11 - N + Q1 + 2 × Q2)</li>
+                    </ul>
+                </div>
+
+                <!-- 16种基础因子 -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">16种基础因子</h3>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>A: 乐群性</div>
+                        <div>B: 聪慧性</div>
+                        <div>C: 稳定性</div>
+                        <div>E: 恃强性</div>
+                        <div>F: 兴奋性</div>
+                        <div>G: 有恒性</div>
+                        <div>H: 敢为性</div>
+                        <div>I: 敏感性</div>
+                        <div>L: 怀疑性</div>
+                        <div>M: 幻想性</div>
+                        <div>N: 世故性</div>
+                        <div>O: 忧虑性</div>
+                        <div>Q1: 变革性</div>
+                        <div>Q2: 自主性</div>
+                        <div>Q3: 完善性</div>
+                        <div>Q4: 紧张性</div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="hideScoringRules()" class="mt-6 w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition duration-200">
+                关闭计分规则
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- 雷达图和概览区域 -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg border border-blue-100">
+                <h2 class="text-2xl font-bold text-blue-700 mb-4 border-b pb-2">二元人格因素测评结果概览</h2>
+                <div class="relative h-96 w-full mb-6">
+                    <!-- 雷达图 Canvas -->
+                    <canvas id="radarChart"></canvas>
+                </div>
+                
+                <div class="mt-6 p-4 bg-blue-50 rounded-lg text-sm text-gray-700">
+                    <p class="font-semibold mb-2">📊分值分层说明：</p>
+                    <div class="flex flex-wrap gap-4 text-xs font-semibold">
+                        <span class="text-red-600">分值 1-3：低分倾向</span>
+                        <span class="text-yellow-600">分值 4-7：中等倾向</span>
+                        <span class="text-green-600">分值 8-10：高分倾向</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 因素列表及互动区 -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg border border-blue-100">
+                <h2 class="text-2xl font-bold text-blue-700 mb-4 border-b pb-2">点击因素 查看详细解读</h2>
+                <ul id="factorList" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                    <!-- 因素列表将由JS填充 -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- 次元人格分析区域 -->
+        <h2 class="text-3xl font-bold text-orange-800 mb-6 border-b-2 border-orange-500 pb-2 mt-12">五种次元人格分析</h2>
+        
+        <!-- 次元人格柱状图容器 -->
+        <div id="dimensionCharts" class="space-y-6">
+            <!-- 柱状图将动态生成 -->
+        </div>
+
+        <!-- 次元人格详细列表 -->
+        <div class="mt-6 bg-white p-6 rounded-xl shadow-lg border border-orange-100">
+            <h3 class="text-2xl font-bold text-orange-700 mb-4 border-b pb-2">点击次元人格 查看详细解释</h3>
+            <ul id="dimensionFactorList" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- 次元人格列表将由JS填充 -->
+            </ul>
+        </div>
+
+        <!-- 详细解读模态框 -->
+        <div id="interpretationModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50 transition-opacity duration-300">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 transform transition-transform duration-300 scale-100">
+                <div class="flex justify-between items-start border-b pb-3 mb-4">
+                    <h3 id="modalTitle" class="text-2xl font-extrabold text-blue-800"></h3>
+                    <button id="closeModal" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div id="modalContent" class="text-gray-700 space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                </div>
+            </div>
+        </div>
+
+        <!-- 计分明细模态框 -->
+        <div id="scoreDetailModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-start border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-extrabold text-purple-800">计分明细</h3>
+                    <button onclick="hideScoreDetails()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div id="scoreDetailContent" class="text-gray-700">
+                    <!-- 计分明细内容将动态加载 -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 定义16PF因素及其描述
+        const factors = [
+            { id: 'A', name: '乐群性 (Warmth)', low_tech: '分裂情感', low_general: '含蓄', low_detail: '缄默、孤独、冷漠、标准分低于3者通常固执，对人冷漠，落落寡合、喜吹毛求疵，宁愿独自工作，对事而不对人，不轻易放弃自己的主见，为人做事的标准常常很高。严谨而不苟且。', high_tech: '环性情感，或高情感', high_general: '开朗', high_detail: '外向、热情、乐群。标准分高过8者，通常和蔼可亲，与人相处，合作与适应的能力特强。喜欢和别人共同工作，参加或组织各种社团活动，不斤斤计较，容易接受别人的批评。萍水相逢也可以一见如故。教师和推销员多系高A，而物理学家和电机工程师则多系低A。' },
+            { id: 'B', name: '聪慧性 (Reasoning)', low_tech: '低3', low_general: '智能较低', low_detail: '思想迟钝，学识浅薄，抽象思考能力弱。低者通常对学习与了解能 力不强，不能“举一反三”。迟钝的原因可能由于情绪不稳定，或答题时未准确把握题意造成的。', high_tech: '高8', high_general: '智能较高', high_detail: '聪明。富有才识，善于抽象思考，高者通常学习能力强，思考敏捷 真确。教育、文化水准高，个人心身状态健康，机警者多有高B。高B反 映心智机能的正常。' },
+            { id: 'C', name: '稳定性 (Stability)', low_tech: '低自我力量', low_general: '情感影响', low_detail: '情绪激动，易生烦恼，他们很易受环境的支配，对生活上所遭遇的阻挠或挫折不能泰然处置。容易受环境的支配，心神动摇不定。不能面对现实，时时会急噪不安，甚至有时失眠、噩梦、等现象。', high_tech: '高自我力量', high_general: '情感稳定', high_detail: '情绪稳定而成熟，能面对现实。高分者通常以沉着的态度应付现实各项问题。行动充满魄力。具有维持团体的精神。但有时可能由于不能彻底解决许多生活难题，而不得不自我安慰。' },
+            { id: 'E', name: '恃强性 (Dominance)', low_tech: '顺从性', low_general: '谦虚', low_detail: '很谦逊、顺从、通融、恭顺，他们的行为很温和，善于迎合别人的旨意。也可能是由于认为自己的希求是可望而不可求的，即使他们正处于十分好的境地，也经常会有“事事不如人”的感觉。', high_tech: '支配性', high_general: '主观武断', high_detail: '十分好强，固执，独立。积极。他们非常看重自己的能力与才识，对自己的评价很高，喜欢坚持自己的观点，经常反抗有权力者或驾驭不如自己的人。有时自以为是，武断。 一般地，领袖以及有地位有成就的人多属高E。救火队员和航空飞行员的因素E高。' },
+            { id: 'F', name: '兴奋性 (Liveliness)', low_tech: '平静', low_general: '严肃', low_detail: '十分严肃、冷静、寡言，他们的一言一行都很审慎，内省而不轻易发言。给人以稳重的感觉。但常常过分深思熟虑，在行为上又近乎骄傲自大。在职责上，他们是非常认真可靠的工作人员。', high_tech: '澎湃激荡', high_general: '无忧无虑', high_detail: '这种类型的人十分轻松兴奋，随遇而安。他们非常活泼、愉快、健谈。对人对事，很热心而富有感情。常常会因为过分冲动而导致行为变化莫测。 行政主管人员多有高F。实验技术人员则不必有高F。' },
+            { id: 'G', name: '有恒性 (Rule-Consciousness)', low_tech: '低超我', low_general: '自私自利', low_detail: '十分容易权宜敷衍，他们不看重高超的目标与理想，对人类社会没有绝对的责任感。他们不会墨守成规，有时甚至会不惜知法犯法，不择手段以达到目的。因此，他们经常能够有效的解决实际问题，而无须浪费时间与精力。', high_tech: '高超我', high_general: '有良心', high_detail: '非常有恒负责，做事尽职尽责，有始有终。他们把是非善恶作为行为的指针，他们的朋友一般都是努力苦干的人。他们不喜欢诙谐有趣的场合。' },
+            { id: 'H', name: '敢为性 (Social Boldness)', low_tech: '威胁反应性', low_general: '胆小', low_detail: '畏怯退缩，缺乏自信心。低者通常在人群中羞怯，有不自然的姿态，有强烈的自卑感。拙于发言，更不愿和陌生人交谈。凡事采取观望的态度。有时由于过份的自我意识而忽视了社会环境中的重要事物与活动。', high_tech: '副交感免疫性', high_general: '冒险', high_detail: '冒险敢为，少有顾忌。高者通常不掩饰，不畏缩，有敢作敢为的精神，使他能经历艰辛而保持有刚毅的毅力。有时可能太粗心大意，忽视细节，遭受无谓的打击与挫折，可能无聊多事，喜欢向异性殷勤卖力。 救火队队员和飞行员有高H，事物员多系低H。' },
+            { id: 'I', name: '敏感性 (Sensitivity)', low_tech: '极度现实性', low_general: '硬心肠', low_detail: '理智的，着重现实。低分者常多以客观、坚强、独立的态度处理当前的问题。并重视文化修养，以及一些主观和感情用事的看法，可能过份骄傲，冷酷无情。', high_tech: '娇养性情绪过敏', high_general: '软心肠', high_detail: '敏感，感情用事。高者通常心肠软，易受感动，较女性化，受好艺术，耽于幻想。 有时过份不务实际，缺乏耐性与恒心，不喜欢接近粗俗的人和做笨重的工作。 音乐家、艺人、女人属高I，而工程师，外科医生、统计师等则多低I' },
+            { id: 'L', name: '怀疑性 (Vigilance)', low_tech: '放松', low_general: '信任别人', low_detail: '信赖随和，易与人相处。低者通常无猜忌，不与人角逐竞争。顺应合作，善于体贴人。', high_tech: '投射紧张', high_general: '多疑', high_detail: '怀疑、刚愎、固执己见，高者通常多怀疑，不信任别人。与人相处，常斤斤计较，不顾念到别人的利益。 工程师、精神病护理员多系低L，而行政人员和警察常是高L。' },
+            { id: 'M', name: '幻想性 (Abstractedness)', low_tech: '实际性', low_general: '实际', low_detail: '非常现实，合乎成规。他们凡事都力求妥善处理。从不鲁莽从事。在紧要关键时也十分镇静。但常常会因为过于重视现实，而为人索然无味。', high_tech: '我向或自向性', high_general: '空想', high_detail: '有非常多的幻想，十分不注重现实。他们忽视生活的细节，以自身的动机、当时的兴趣等主观因素作为行为的出发点。他们可能富于创造力，但常常会过分不务实际，做出近乎冲动的行为，因而很容易被别人误解和奚落。 艺术家、作者及从事研究者多有高M。' },
+            { id: 'N', name: '世故性 (Privateness)', low_tech: '朴实性', low_general: '直率', low_detail: '非常坦白、直率、天真。他们思想很单纯，能够做到与人无争，有自许、满意之感。正因为如此，常常显得十分幼稚、粗鲁、笨拙，给人一种缺乏教养的感觉。', high_tech: '机灵性', high_general: '伶俐', low_detail: '十分精明、能干，非常世故。他们处事老练，行为很是得体，能够冷静的分析一切，他们对于事物的看法是极为理智、客观的，很少会对看不惯的事情讥笑和批评。 科学家、工程师、飞行员多系高N，牧师神父、护士等多系低N。' },
+            { id: 'O', name: '忧虑性 (Apprehension)', low_tech: '信念把握', low_general: '安静', low_detail: '十分安详、沉着，非常有自信心。他们做事决不轻易动摇，相信自己有应付各种问题的能力。他们有安全感，对人对事能够应付自如。但显得缺乏同情心，而引发别人的反感与恶意。', high_tech: '易于内疚', high_general: '忧惧', high_detail: '非常容易忧虑抑郁，常常会感到很烦恼。他们时时觉得世道艰辛，人生不如意的事情太多，甚至会沮丧悲观。常常会有患得患失之感，自觉自己不被人接受，缺乏与人接近的勇气。' },
+            { id: 'Q1', name: '变革性 (Openness to Change)', low_tech: '保守性', low_general: '保守', low_detail: '十分保守，非常尊重传统观念与行为标准。他们经常无条件的接受社会中许多相沿已久的而有权威性的见解，不愿尝试探求新的境界。往往激烈地反对新思潮以及一切变动。在政治与宗教信仰上，十分墨守成规，被别人称为老顽固或时代的落伍者。', high_tech: '激进性', high_general: '试探性', high_detail: '非常激进、自由，很少拘泥于现实。他们很喜欢检验一些现有的理论与事实，而予以新的评价，很少不轻易判断是非，企图了解先进的思想和行为。他们往往见多识广，十分愿意充实自己的生活经验。 行政主管人、前进的政治家、科学家都必须具有高Q1，护士、牧师神父与许多未受高深教育的技工等则多有低Q1。' },
+            { id: 'Q2', name: '自主性 (Self-Reliance)', low_tech: '团体依附', low_general: '依赖集体', low_detail: '十分依赖、随群附众。他们非常愿意与人共同工作，而不愿意单独完成。常常会放弃自己的主见，附和大家的意见，以取得别人的好感。他们很需要集体的支持以维持自己的自信心。但并非真正的乐群者。', high_tech: '自给自足', high_general: '自恃', high_detail: '独立自强，当机立断，往往自作主张，十分独立的完成自己的工作，不依赖别人，也不受社会舆论的约束。他们无意控制或支配别人，不被别人讨厌，但也不需要别人的好感。 科学家、行政主管人等多有高Q2。' },
+            { id: 'Q3', name: '完善性 (Perfectionism)', low_tech: '低整合性', low_general: '无原则', low_detail: '矛盾冲突，不顾大体，他们往往不能克制自己，很难尊重礼俗，更加不愿意考虑到别人的需要。他们的内心充满了各种矛盾，却无法靠自己来解决。生活适应有问题者多有低Q3。', high_tech: '高自我概念', high_general: '克制', high_detail: '知已知彼，自律严谨，他们言行一致，能够非常合理地支配自己的感情和行为。为人处事，能够保持自己的自尊心，受到别人的尊重，但常常固执已见。 高Q3者多具有领袖能力的才干。' },
+            { id: 'Q4', name: '紧张性 (Tension)', low_tech: '低能量紧张', low_general: '松懈（驰）', low_detail: '心平气和、安逸宁静，很善于保持内心的平衡，遇事很少有紧张困扰之感。他们很容易知足，因而常乐。但常被别人认为过分懒惰，缺乏进取心。', high_tech: '能量紧张', high_general: '紧张', high_detail: '紧张困扰，很容易激动兴奋。他们缺乏耐心，心神不定。常常会过度兴奋而感觉疲乏，又无法摆脱以求宁静。生活战战兢兢，不能控制自己。 未能在生活或职业中发挥本身才智潜能的人多具高Q4，如餐店招待，家庭主妇，缺乏生活保障的作业等。' }
+        ];
+
+        // 从localStorage读取测试结果，如果没有则使用示例数据
+        let sampleScores = {};
+        let dimensionScores = {};
+        let rawScores = {};
+        let isQuickDemo = false;
+        
+        // 尝试从localStorage读取
+        const storedSten = localStorage.getItem('stenScores');
+        const storedDimension = localStorage.getItem('dimensionScores');
+        const storedRaw = localStorage.getItem('rawScores');
+        const storedDemo = localStorage.getItem('isQuickDemo');
+        
+        if (storedSten && storedDimension && storedRaw) {
+            sampleScores = JSON.parse(storedSten);
+            dimensionScores = JSON.parse(storedDimension);
+            rawScores = JSON.parse(storedRaw);
+            isQuickDemo = storedDemo === 'true';
+        } else {
+            // 如果没有数据，使用示例数据
+            sampleScores = { A: 7, B: 8, C: 6, E: 5, F: 9, G: 6, H: 7, I: 9, L: 4, M: 8, N: 7, O: 4, Q1: 8, Q2: 7, Q3: 5, Q4: 4 };
+            dimensionScores = {
+                DIM1: 7.3,
+                DIM2: 33,
+                DIM3: 24,
+                DIM4: 69,
+                DIM5: 66
+            };
+        }
+        
+        // 新增：次元人格因素及其描述
+        const dimensionFactors = [
+            { id: 'DIM1', name: '内向与外向型',
+              low_general: '内向型', low_trend: '低于4.5分者', low_detail: '低分者内倾，通常羞怯而审慎。与人相处多拘谨不自然，性格内向，从事较精细的工作较好。',
+              high_general: '外向型', high_trend: '高于6.5分者', high_detail: '高分者外倾，通常擅于交游，不计小节，不受拘束。这种性格倾向的人从事需与人打交道的工作比较合适。',
+              mid_trend: '4.5～6.5分', mid_detail: '中性。'
+            },
+            { id: 'DIM2', name: '心理健康状态',
+              low_general: '情绪不稳定', low_trend: '低于12分', low_detail: '情绪不稳定明显。',
+              high_general: '心理健康良好', high_trend: '分数越高', high_detail: '分数越高心理健康状态越好。总分值4～40，均值22。',
+              mid_trend: '12～40分', mid_detail: '通常心理状态较稳定。'
+            },
+            { id: 'DIM3', name: '学习或适应新环境的成长能力',
+              low_general: '学习成长能力较弱', low_trend: '低分者', low_detail: '低分者属于学习成长能力较弱者。',
+              high_general: '学习成长能力较强', high_trend: '25分以上者', high_detail: '高分者属于学习成长能力较强者，25分以上者成功希望较大。此要素中分为4～40分，平均分值为22分。',
+              mid_trend: '低分者-24分', mid_detail: '中等偏上。'
+            },
+            { id: 'DIM4', name: '专业成就的性格因素',
+              low_general: '成就较低的人才', low_trend: '低分者', low_detail: '低分者为成就较低的人才。',
+              high_general: '成就较高的人才', high_trend: '67分以上者', high_detail: '高分者为成就较高的人才。此要素总分为10～100分，平均值为55分，67分以上者成功希望较大。',
+              mid_trend: '55～66分', mid_detail: '中等偏上，有较高成就潜力。'
+            },
+            { id: 'DIM5', name: '创造能力的性格因素',
+              low_general: '创造能力较弱', low_trend: '低分者', low_detail: '低分者为创造能力较弱者。',
+              high_general: '创造能力较强', high_trend: '标准分高于7分或实际得分高于88分者', high_detail: '高分者为创造能力较强者。标准分高于7分者或实际得分高于88分者，创造能力较强。',
+              mid_trend: '中等范围', mid_detail: '具有一定的创造力。'
+            }
+        ];
+
+        // 从dimensionScores获取分数，如果没有则使用默认值
+        dimensionFactors.forEach(d => {
+            d.score = dimensionScores[d.id] || d.score || 0;
+        });
+
+        // 将分数转换为雷达图数据
+        const chartLabels = factors.map(f => `${f.id}: ${f.name.split(' ')[0]}`);
+        const chartData = factors.map(f => sampleScores[f.id]);
+
+        // 次元人格图表数据（已改为柱状图）
+
+        let radarChartInstance = null;
+        
+        // 初始化雷达图 - 修复渐变显示问题
+        function initializeRadarChart() {
+            // 确保DOM元素已加载
+            const radarElement = document.getElementById('radarChart');
+            if (!radarElement) {
+                console.error('雷达图容器不存在');
+                return;
+            }
+            
+            const ctx = radarElement.getContext('2d');
+            if (!ctx) {
+                console.error('无法获取Canvas上下文');
+                return;
+            }
+            
+            // 强制设置Canvas尺寸以确保渐变正确渲染
+            radarElement.width = radarElement.clientWidth;
+            radarElement.height = radarElement.clientHeight;
+            
+            // 获取正确的中心点和半径
+            const centerX = radarElement.width / 2;
+            const centerY = radarElement.height / 2;
+            const maxRadius = Math.min(radarElement.width, radarElement.height) * 0.45; // 稍小一点的半径确保完整显示
+            
+            // 修复渐变效果 - 降低透明度，增强颜色对比
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)'); // 中心更白
+            gradient.addColorStop(0.3, 'rgba(224, 242, 254, 0.5)'); // 近中心淡蓝
+            gradient.addColorStop(0.7, 'rgba(165, 214, 255, 0.7)'); // 中间蓝色
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.8)'); // 边缘深蓝色，降低透明度以增强显示
+
+            const data = {
+                labels: chartLabels,
+                datasets: [{
+                    label: '您的标准分 (Sten)',
+                    data: chartData,
+                    backgroundColor: gradient, 
+                    borderColor: 'rgb(30, 64, 175)', // 深蓝色边框
+                    borderWidth: 3, // 稍宽边框增强科技感
+                    pointBackgroundColor: 'rgb(30, 64, 175)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(30, 64, 175)',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    tension: 0.2 // 线条平滑度
+                }]
+            };
+
+            const config = {
+                type: 'radar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 2000, // 动画时长，确保渐变正确显示
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#e5e7eb',
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const factor = factors[index];
+                                    return `${factor.name}: Sten ${context.raw}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: { 
+                                color: 'rgba(226, 232, 240, 0.6)', // 更淡的角度线，突出渐变
+                                lineWidth: 1
+                            },
+                            suggestedMin: 1, 
+                            suggestedMax: 10, 
+                            ticks: {
+                                stepSize: 1,
+                                color: '#4B5563',
+                                backdropColor: 'transparent',
+                                font: { size: 12 }
+                            },
+                            grid: {
+                                color: (context) => {
+                                    if (context.tick && (context.tick.value === 3 || context.tick.value === 7)) {
+                                        return 'rgba(251, 191, 36, 0.6)'; // 弱化参考线，突出渐变
+                                    }
+                                    return 'rgba(226, 232, 240, 0.3)'; // 更淡的网格线
+                                },
+                                lineWidth: (context) => {
+                                    if (context.tick && (context.tick.value === 3 || context.tick.value === 7)) {
+                                        return 2;
+                                    }
+                                    return 1;
+                                }
+                            },
+                            pointLabels: {
+                                font: { size: 12, weight: 'bold', family: 'sans-serif' },
+                                color: '#1E293B',
+                                padding: 10
+                            }
+                        }
+                    }
+                }
+            };
+
+            // 销毁可能存在的旧实例
+            if (radarChartInstance) {
+                radarChartInstance.destroy();
+            }
+            
+            // 创建新图表实例
+            radarChartInstance = new Chart(ctx, config);
+        }
+        
+        // 窗口大小变化时重绘图表（统一处理）
+        window.addEventListener('resize', function() {
+            if (radarChartInstance) {
+                radarChartInstance.resize();
+            }
+        });
+
+        /**
+         * 显示详细解读的模态框
+         * @param {string} factorId 因素ID (A, B, C...)
+         */
+        function showInterpretation(factorId) {
+            const factorData = factors.find(f => f.id === factorId);
+            const score = sampleScores[factorId];
+            
+            let interpretationHTML = '';
+            
+            // 根据得分确定倾向
+            let scoreTrend = '中等倾向 (分值 4-7)';
+            let scoreColorClass = 'text-yellow-600';
+            if (score >= 8) {
+                scoreTrend = '高分倾向 (分值 8-10)';
+                scoreColorClass = 'text-green-600';
+            } else if (score <= 3) {
+                scoreTrend = '低分倾向 (分值 1-3)';
+                scoreColorClass = 'text-red-600';
+            }
+
+            // 1. 显示当前得分和倾向
+            const trendInfo = `
+                <p class="text-lg font-semibold mb-3">您的当前得分：<span class="${scoreColorClass} font-extrabold text-2xl">${score}</span> Sten (${scoreTrend})</p>
+                <div class="h-px bg-gray-200 my-4"></div>
+            `;
+            
+            // 2. 展示高分和低分特质
+            interpretationHTML = `
+                ${trendInfo}
+                
+                <h4 class="font-bold text-gray-800 mt-6 mb-2 text-xl">高分特质解读：</h4>
+                <div class="p-4 bg-green-50 rounded-lg border-l-4 border-green-600 shadow-md">
+                    <h5 class="font-bold text-green-800 mb-1">一般名称: ${factorData.high_general} / 技术名称: ${factorData.high_tech}</h5>
+                    <p class="text-sm text-gray-700">${factorData.high_detail}</p>
+                </div>
+
+                <h4 class="font-bold text-gray-800 mt-6 mb-2 text-xl">低分特质解读：</h4>
+                <div class="p-4 bg-red-50 rounded-lg border-l-4 border-red-600 shadow-md">
+                    <h5 class="font-bold text-red-800 mb-1">一般名称: ${factorData.low_general} / 技术名称: ${factorData.low_tech}</h5>
+                    <p class="text-sm text-gray-700">${factorData.low_detail}</p>
+                </div>
+            `;
+
+
+            document.getElementById('modalTitle').className = `text-2xl font-extrabold text-blue-800`;
+            document.getElementById('modalTitle').textContent = `${factorData.name} (${factorData.id})`;
+            document.getElementById('modalContent').innerHTML = interpretationHTML;
+
+            // 显示模态框
+            document.getElementById('interpretationModal').classList.remove('hidden');
+            document.getElementById('interpretationModal').classList.add('flex');
+        }
+
+        // 渲染次元人格柱状图
+        function renderDimensionCharts() {
+            const container = document.getElementById('dimensionCharts');
+            container.innerHTML = '';
+
+            dimensionFactors.forEach((dim, index) => {
+                const score = dimensionScores[dim.id] || dim.score;
+                
+                // 为每个次元人格设置不同的颜色主题
+                const themes = [
+                    { name: '内向-外向', colorStart: 'from-purple-500', colorMid: 'via-purple-400', colorEnd: 'to-purple-300', min: 0, max: 10, ranges: { low: [0, 4.5], mid: [4.5, 6.5], high: [6.5, 10] } },
+                    { name: '心理健康', colorStart: 'from-green-600', colorMid: 'via-green-400', colorEnd: 'to-green-300', min: 4, max: 40, ranges: { low: [4, 12], mid: [12, 22], high: [22, 40] } },
+                    { name: '成长能力', colorStart: 'from-blue-600', colorMid: 'via-blue-400', colorEnd: 'to-blue-300', min: 4, max: 40, ranges: { low: [4, 18], mid: [18, 25], high: [25, 40] } },
+                    { name: '专业成就', colorStart: 'from-orange-600', colorMid: 'via-orange-400', colorEnd: 'to-orange-300', min: 10, max: 100, ranges: { low: [10, 40], mid: [40, 67], high: [67, 100] } },
+                    { name: '创造能力', colorStart: 'from-pink-600', colorMid: 'via-pink-400', colorEnd: 'to-pink-300', min: 0, max: 120, ranges: { low: [0, 60], mid: [60, 88], high: [88, 120] } }
+                ];
+                
+                const theme = themes[index];
+                const percentage = ((score - theme.min) / (theme.max - theme.min)) * 100;
+                
+                // 确定当前分数所在区间（与列表卡片使用相同的判断逻辑）
+                let rangeLabel = '';
+                let rangeClass = '';
+                if (score <= theme.ranges.low[1]) {
+                    rangeLabel = index === 0 ? '内向型' : '低分';
+                    rangeClass = 'text-red-600';
+                } else if (score <= theme.ranges.high[0]) {
+                    rangeLabel = index === 0 ? '中性' : '中等';
+                    rangeClass = 'text-yellow-600';
+                } else {
+                    rangeLabel = index === 0 ? '外向型' : '高分';
+                    rangeClass = 'text-green-600';
+                }
+
+                const cardHTML = `
+                    <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-4 hover:shadow-xl transition-shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold text-gray-800">${dim.name}</h3>
+                            <span class="text-2xl font-bold ${rangeClass}">${score.toFixed(1)}</span>
+                        </div>
+                        
+                        <!-- 柱状图 -->
+                        <div class="relative mb-2">
+                            <div class="h-7 bg-gradient-to-r ${theme.colorStart} ${theme.colorMid} ${theme.colorEnd} relative rounded-lg overflow-hidden shadow-inner">
+                                <!-- 背景分区 -->
+                                <div class="absolute inset-0 flex">
+                                    <!-- 低分区 -->
+                                    <div class="bg-purple-900 bg-opacity-30" style="width: ${(theme.ranges.low[1] - theme.min) / (theme.max - theme.min) * 100}%"></div>
+                                    <!-- 中分区 -->
+                                    <div class="bg-yellow-600 bg-opacity-30" style="width: ${(theme.ranges.high[0] - theme.ranges.low[1]) / (theme.max - theme.min) * 100}%"></div>
+                                    <!-- 高分区 -->
+                                    <div class="bg-green-600 bg-opacity-30" style="width: ${(theme.max - theme.ranges.high[0]) / (theme.max - theme.min) * 100}%"></div>
+                                </div>
+                                
+                                <!-- 当前分数标记 -->
+                                <div class="absolute top-0 bottom-0 w-1 bg-black shadow-lg transform -translate-x-1/2" style="left: ${percentage}%">
+                                    <div class="absolute -top-0 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                                        ${score.toFixed(1)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 分区标签 -->
+                        <div class="flex justify-between text-xs text-gray-600">
+                            <span>${theme.min}</span>
+                            <span class="font-semibold ${rangeClass}">当前: ${rangeLabel}</span>
+                            <span>${theme.max}</span>
+                        </div>
+                        
+                        <!-- 区间说明 -->
+                        <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+                            <div class="bg-purple-50 p-2 rounded border border-purple-200">
+                                <p class="font-semibold text-purple-700">${index === 0 ? '内向型' : '低分'}</p>
+                                <p class="text-gray-600">${theme.ranges.low[0]}-${theme.ranges.low[1]}</p>
+                            </div>
+                            <div class="bg-yellow-50 p-2 rounded border border-yellow-200">
+                                <p class="font-semibold text-yellow-700">${index === 0 ? '中性' : '中等'}</p>
+                                <p class="text-gray-600">${theme.ranges.low[1]}-${theme.ranges.high[0]}</p>
+                            </div>
+                            <div class="bg-green-50 p-2 rounded border border-green-200">
+                                <p class="font-semibold text-green-700">${index === 0 ? '外向型' : '高分'}</p>
+                                <p class="text-gray-600">${theme.ranges.high[0]}-${theme.max}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        // 显示次元人格详细解读
+        function showDimensionInterpretation(dimensionId) {
+            const factorData = dimensionFactors.find(d => d.id === dimensionId);
+            const score = dimensionScores[dimensionId] || factorData.score;
+            
+            let scoreTrend = '';
+            let scoreColorClass = 'text-gray-600';
+            let currentTrendDetail = factorData.mid_detail;
+            
+            // 使用与柱状图和列表相同的区间判断逻辑
+            const ranges = [
+                { low: [1, 4.5], mid: [4.5, 6.5], high: [6.5, 10] },
+                { low: [4, 12], mid: [12, 22], high: [22, 40] },
+                { low: [4, 18], mid: [18, 25], high: [25, 40] },
+                { low: [10, 40], mid: [40, 67], high: [67, 100] },
+                { low: [0, 60], mid: [60, 88], high: [88, 120] }
+            ];
+            
+            const index = dimensionFactors.findIndex(d => d.id === dimensionId);
+            const range = ranges[index];
+
+            if (score <= range.low[1]) {
+                scoreTrend = factorData.low_general;
+                scoreColorClass = 'text-red-600';
+                currentTrendDetail = factorData.low_detail;
+            } else if (score <= range.high[0]) {
+                scoreTrend = index === 0 ? '中性' : factorData.mid_detail.replace(/中等偏上。|中等。/g, '中等');
+                scoreColorClass = 'text-yellow-600';
+                currentTrendDetail = factorData.mid_detail;
+            } else {
+                scoreTrend = factorData.high_general;
+                scoreColorClass = 'text-green-600';
+                currentTrendDetail = factorData.high_detail;
+            }
+            
+            const trendInfo = `
+                <p class="text-lg font-semibold mb-3">您的当前得分：<span class="${scoreColorClass} font-extrabold text-2xl">${score}</span> <span class="text-gray-700">(${scoreTrend})</span></p>
+                <div class="p-3 bg-blue-100 rounded-lg text-sm mb-4">
+                    <p class="font-bold text-blue-800">当前倾向解读:</p>
+                    <p class="text-gray-700">${currentTrendDetail}</p>
+                </div>
+                <div class="h-px bg-gray-200 my-4"></div>
+            `;
+            
+            interpretationHTML = `
+                ${trendInfo}
+                
+                <h4 class="font-bold text-gray-800 mt-6 mb-2 text-xl">高分解释 (倾向 ${factorData.high_general}):</h4>
+                <div class="p-4 bg-orange-50 rounded-lg border-l-4 border-orange-600 shadow-md">
+                    <h5 class="font-bold text-orange-800 mb-1">得分标准: ${factorData.high_trend}</h5>
+                    <p class="text-sm text-gray-700">${factorData.high_detail}</p>
+                </div>
+
+                <h4 class="font-bold text-gray-800 mt-6 mb-2 text-xl">低分解释 (倾向 ${factorData.low_general}):</h4>
+                <div class="p-4 bg-gray-100 rounded-lg border-l-4 border-gray-600 shadow-md">
+                    <h5 class="font-bold text-gray-800 mb-1">得分标准: ${factorData.low_trend}</h5>
+                    <p class="text-sm text-gray-700">${factorData.low_detail}</p>
+                </div>
+            `;
+
+            document.getElementById('modalTitle').className = `text-2xl font-extrabold text-orange-800`;
+            document.getElementById('modalTitle').textContent = factorData.name;
+            document.getElementById('modalContent').innerHTML = interpretationHTML;
+
+            document.getElementById('interpretationModal').classList.remove('hidden');
+            document.getElementById('interpretationModal').classList.add('flex');
+        }
+
+        // 渲染次元人格得分列表
+        function renderDimensionFactorList() {
+            const listContainer = document.getElementById('dimensionFactorList');
+            listContainer.innerHTML = '';
+
+            dimensionFactors.forEach((d, index) => {
+                const score = dimensionScores[d.id] || d.score;
+                let scoreColor = 'text-yellow-600';
+                let scoreTrendText = '中等';
+
+                // 使用与柱状图相同的区间划分
+                const ranges = [
+                    { low: [1, 4.5], mid: [4.5, 6.5], high: [6.5, 10], lowLabel: '内向型', midLabel: '中性', highLabel: '外向型' },
+                    { low: [4, 12], mid: [12, 22], high: [22, 40], lowLabel: '情绪不稳定', midLabel: '中等', highLabel: '心理健康良好' },
+                    { low: [4, 18], mid: [18, 25], high: [25, 40], lowLabel: '成长能力较弱', midLabel: '中等', highLabel: '成长能力较强' },
+                    { low: [10, 40], mid: [40, 67], high: [67, 100], lowLabel: '成就较低', midLabel: '中等', highLabel: '成就较高' },
+                    { low: [0, 60], mid: [60, 88], high: [88, 120], lowLabel: '创造能力较弱', midLabel: '中等', highLabel: '创造能力较强' }
+                ];
+
+                const range = ranges[index];
+                if (score <= range.low[1]) {
+                    scoreColor = 'text-red-600';
+                    scoreTrendText = range.lowLabel;
+                } else if (score <= range.high[0]) {
+                    scoreColor = 'text-yellow-600';
+                    scoreTrendText = range.midLabel;
+                } else {
+                    scoreColor = 'text-green-600';
+                    scoreTrendText = range.highLabel;
+                }
+
+                const listItem = document.createElement('li');
+                listItem.className = `bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md hover:scale-105 transition-all duration-200`;
+                listItem.setAttribute('data-dimension-id', d.id);
+                listItem.onclick = () => showDimensionInterpretation(d.id);
+
+                listItem.innerHTML = `
+                    <div class="text-center">
+                        <div class="mb-2">
+                            <h4 class="font-bold text-gray-800 text-lg">${d.name}</h4>
+                        </div>
+                        <div class="mb-2">
+                            <span class="font-bold ${scoreColor} text-3xl">${score.toFixed(1)}</span>
+                        </div>
+                        <div class="text-sm">
+                            <span class="font-semibold text-gray-600">倾向: </span>
+                            <span class="font-bold ${scoreColor}">${scoreTrendText}</span>
+                        </div>
+                    </div>
+                `;
+                listContainer.appendChild(listItem);
+            });
+        }
+
+        // 渲染右侧的因素列表
+        function renderFactorList() {
+            const listContainer = document.getElementById('factorList');
+            listContainer.innerHTML = ''; 
+
+            factors.forEach(f => {
+                const score = sampleScores[f.id];
+                let scoreColor = 'text-yellow-600'; 
+                if (score >= 8) {
+                    scoreColor = 'text-green-600';
+                } else if (score <= 3) {
+                    scoreColor = 'text-red-600';
+                }
+
+                const listItem = document.createElement('li');
+                listItem.className = `p-3 flex justify-between items-center rounded-lg cursor-pointer hover:bg-blue-50 transition duration-150 border-b border-gray-100`;
+                listItem.setAttribute('data-factor-id', f.id);
+                listItem.onclick = () => showInterpretation(f.id);
+
+                listItem.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="font-extrabold text-blue-800 w-6">${f.id}</span>
+                        <span class="font-medium text-gray-700">${f.name}</span>
+                    </div>
+                    <span class="font-bold ${scoreColor} text-xl">${score}</span>
+                `;
+                listContainer.appendChild(listItem);
+            });
+        }
+
+        // 显示计分规则
+        function showScoringRules() {
+            document.getElementById('scoringRulesCard').style.display = 'block';
+        }
+
+        // 隐藏计分规则
+        function hideScoringRules() {
+            document.getElementById('scoringRulesCard').style.display = 'none';
+        }
+
+        // 显示计分明细
+        function showScoreDetails() {
+            const modal = document.getElementById('scoreDetailModal');
+            const content = document.getElementById('scoreDetailContent');
+            
+            // 构建计分明细HTML
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+            
+            // 显示16个基础因子的得分
+            factors.forEach(f => {
+                const rawScore = rawScores[f.id] || 0;
+                const stenScore = sampleScores[f.id] || 0;
+                html += `
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h4 class="font-bold text-lg text-blue-800 mb-2">${f.id} - ${f.name}</h4>
+                        <div class="space-y-1 text-sm">
+                            <p><span class="font-semibold">原始分:</span> ${rawScore}</p>
+                            <p><span class="font-semibold">标准分 (Sten):</span> ${stenScore}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            // 显示次元人格得分
+            html += '<h3 class="text-xl font-bold text-purple-800 mt-6 mb-4">次元人格得分</h3>';
+            html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+            dimensionFactors.forEach(d => {
+                const score = dimensionScores[d.id] || d.score;
+                html += `
+                    <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <h4 class="font-bold text-lg text-purple-800 mb-2">${d.name}</h4>
+                        <p class="text-sm"><span class="font-semibold">得分:</span> ${score.toFixed(1)}</p>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            content.innerHTML = html;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        // 隐藏计分明细
+        function hideScoreDetails() {
+            const modal = document.getElementById('scoreDetailModal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
+        // 确保DOM完全加载后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeRadarChart();
+            renderFactorList();
+            
+            // 初始化次元人格柱状图
+            renderDimensionCharts();
+            renderDimensionFactorList();
+
+            // 检测是否为演示模式
+            if (isQuickDemo) {
+                document.getElementById('quickDemoBanner').style.display = 'block';
+            }
+            
+            // 调试信息
+            console.log('次元人格得分:', dimensionScores);
+            console.log('16种基础因子得分:', sampleScores);
+
+            // 关闭模态框事件
+            document.getElementById('closeModal').onclick = () => {
+                document.getElementById('interpretationModal').classList.remove('flex');
+                document.getElementById('interpretationModal').classList.add('hidden');
+            };
+
+            // 点击背景关闭模态框
+            document.getElementById('interpretationModal').onclick = (e) => {
+                if (e.target === document.getElementById('interpretationModal')) {
+                    document.getElementById('interpretationModal').classList.remove('flex');
+                    document.getElementById('interpretationModal').classList.add('hidden');
+                }
+            };
+        });
+    </script>
+</body>
+</html>
